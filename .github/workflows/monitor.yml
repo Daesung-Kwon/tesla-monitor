@@ -27,13 +27,6 @@ jobs:
       - name: Create data directory
         run: mkdir -p python-monitor/data
       
-      - name: Download previous data
-        uses: actions/download-artifact@v4
-        with:
-          name: monitor-data
-          path: python-monitor/data
-        continue-on-error: true
-      
       - name: Run monitor
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -43,9 +36,11 @@ jobs:
           cd python-monitor
           python monitor_rss.py
       
-      - name: Upload data
-        uses: actions/upload-artifact@v4
-        with:
-          name: monitor-data
-          path: python-monitor/data
-          retention-days: 90
+      - name: Commit and push seen articles
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add python-monitor/data/seen_articles.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto: Update seen articles [skip ci]"
+          git push
+        continue-on-error: true

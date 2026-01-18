@@ -14,10 +14,12 @@ ENV/
 !env.example
 
 # 데이터
-data/
-*.db
-*.sqlite
-*.log
+data/*.db
+data/*.sqlite
+data/*.log
+# seen_articles.json은 추적 (중복 방지용)
+!python-monitor/data/
+!python-monitor/data/seen_articles.json
 
 # changedetection.io
 changedetection-data/
