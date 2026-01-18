@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional, List, Dict
 import json
 import logging
+from deep_translator import GoogleTranslator
 
 # 로깅 설정
 logging.basicConfig(
@@ -46,9 +47,16 @@ def load_seen_articles() -> set:
         try:
             with open(SEEN_FILE, 'r') as f:
                 data = json.load(f)
+                logger.info(f"✅ seen_articles 로드 완료: {len(data)}개")
+                logger.info(f"   파일 위치: {SEEN_FILE}")
+                # 샘플 ID 출력 (디버깅용)
+                if data:
+                    logger.info(f"   샘플 ID: {data[0][:16]}...")
                 return set(data)
         except Exception as e:
-            logger.error(f"seen_articles 로드 실패: {e}")
+            logger.error(f"❌ seen_articles 로드 실패: {e}")
+    else:
+        logger.info(f"⚠️  seen_articles 파일 없음 (첫 실행)")
     return set()
 
 
@@ -56,10 +64,14 @@ def save_seen_articles(seen: set):
     """본 기사 ID 저장"""
     try:
         with open(SEEN_FILE, 'w') as f:
-            json.dump(list(seen), f)
-        logger.info(f"seen_articles 저장 완료: {len(seen)}개")
+            json.dump(list(seen), f, indent=2)
+        logger.info(f"✅ seen_articles 저장 완료: {len(seen)}개")
+        logger.info(f"   파일 위치: {SEEN_FILE}")
+        # 파일 크기 확인
+        file_size = os.path.getsize(SEEN_FILE)
+        logger.info(f"   파일 크기: {file_size} bytes")
     except Exception as e:
-        logger.error(f"seen_articles 저장 실패: {e}")
+        logger.error(f"❌ seen_articles 저장 실패: {e}")
 
 
 def get_article_id(entry: Dict) -> str:
@@ -85,42 +97,73 @@ def is_tesla_related(entry: Dict) -> bool:
     return any(keyword in text for keyword in tesla_keywords)
 
 
+def translate_to_korean(text: str) -> str:
+    """영문을 한글로 번역"""
+    try:
+        translator = GoogleTranslator(source='en', target='ko')
+        # 텍스트가 너무 길면 나눠서 번역
+        if len(text) > 5000:
+            text = text[:5000]
+        translated = translator.translate(text)
+        return translated
+    except Exception as e:
+        logger.warning(f"번역 실패: {e}")
+        return text  # 번역 실패 시 원문 반환
+
+
 def format_telegram_message(entry: Dict, source: str) -> str:
-    """Telegram 메시지 포맷팅"""
+    """Telegram 메시지 포맷팅 (한글 번역)"""
     title = entry.get('title', 'No Title')
     link = entry.get('link', '')
     published = entry.get('published', '')
     summary = entry.get('summary', '')
     
-    # HTML 태그 제거 (간단한 방법)
+    # HTML 태그 제거
     import re
     summary = re.sub('<[^<]+?>', '', summary)
-    summary = summary.strip()[:300]  # 300자로 제한
+    summary = summary.strip()[:500]  # 500자로 제한 (번역 전)
+    
+    # 한글 번역
+    logger.info(f"번역 중: {title[:50]}...")
+    title_kr = translate_to_korean(title)
+    summary_kr = translate_to_korean(summary)
     
     # 날짜 포맷팅
     try:
-        from datetime import datetime
         pub_date = datetime.strptime(published, '%a, %d %b %Y %H:%M:%S %z')
         date_str = pub_date.strftime('%Y-%m-%d %H:%M')
     except:
         date_str = published[:16] if published else ''
     
-    message = f"""🚗⚡ <b>Tesla 뉴스 업데이트!</b>
+    message = f"""🚗⚡ <b>테슬라 뉴스 업데이트!</b>
 
-<b>{title}</b>
+<b>{title_kr}</b>
 
 📰 출처: {source}
 📅 {date_str}
 
-{summary}...
+{summary_kr}...
 
-🔗 <a href="{link}">자세히 보기</a>
+🔗 <a href="{link}">원문 보기</a>
 
 #Tesla #테슬라 #TeslaNews"""
     
     # Telegram 메시지 길이 제한 (4096자)
     if len(message) > 4000:
-        message = message[:3997] + "..."
+        # 너무 길면 요약 부분 줄이기
+        summary_kr = summary_kr[:200] + "..."
+        message = f"""🚗⚡ <b>테슬라 뉴스 업데이트!</b>
+
+<b>{title_kr}</b>
+
+📰 출처: {source}
+📅 {date_str}
+
+{summary_kr}
+
+🔗 <a href="{link}">원문 보기</a>
+
+#Tesla #테슬라 #TeslaNews"""
     
     return message
 
@@ -156,39 +199,49 @@ def post_to_telegram(message: str) -> bool:
 def check_feed(feed_name: str, feed_url: str, seen_articles: set) -> List[Dict]:
     """RSS 피드 체크하고 새 기사 반환"""
     try:
-        logger.info(f"피드 체크: {feed_name}")
+        logger.info(f"📰 피드 체크: {feed_name}")
         
         # RSS 피드 파싱
         feed = feedparser.parse(feed_url)
         
         if feed.bozo:
-            logger.warning(f"피드 파싱 경고: {feed_name} - {feed.bozo_exception}")
+            logger.warning(f"⚠️  피드 파싱 경고: {feed_name} - {feed.bozo_exception}")
+        
+        logger.info(f"   총 {len(feed.entries)}개 기사 발견")
         
         new_articles = []
+        skipped_seen = 0
+        skipped_unrelated = 0
         
         for entry in feed.entries[:10]:  # 최신 10개만 체크
             article_id = get_article_id(entry)
+            title = entry.get('title', '')[:50]
             
             # 이미 본 기사는 스킵
             if article_id in seen_articles:
+                logger.debug(f"   ⏭️  이미 본 기사: {title}")
+                skipped_seen += 1
                 continue
             
             # Tesla 관련 기사만
             if not is_tesla_related(entry):
-                logger.info(f"Tesla 무관: {entry.get('title', '')[:50]}")
+                logger.debug(f"   ⏭️  Tesla 무관: {title}")
+                skipped_unrelated += 1
                 continue
             
-            logger.info(f"새 기사 발견: {entry.get('title', '')[:50]}")
+            logger.info(f"   ✨ 새 기사: {title}")
+            logger.info(f"      ID: {article_id[:16]}...")
             new_articles.append({
                 'entry': entry,
                 'source': feed_name,
                 'id': article_id
             })
         
+        logger.info(f"   결과: 새 기사 {len(new_articles)}개 | 이미 본 것 {skipped_seen}개 | 무관 {skipped_unrelated}개")
         return new_articles
         
     except Exception as e:
-        logger.error(f"피드 체크 실패 {feed_name}: {e}")
+        logger.error(f"❌ 피드 체크 실패 {feed_name}: {e}")
         return []
 
 
@@ -227,7 +280,8 @@ def monitor_all_feeds():
             if post_to_telegram(message):
                 posted += 1
                 seen_articles.add(article['id'])
-                time.sleep(3)  # Telegram rate limit
+                logger.info(f"포스팅 성공: {article['id']}")
+                time.sleep(5)  # Telegram rate limit + 번역 API 쿨다운
             
         except Exception as e:
             logger.error(f"기사 포스팅 오류: {e}")
