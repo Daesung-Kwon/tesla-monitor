@@ -6,6 +6,9 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:  # 수동 실행 가능
 
+permissions:
+  contents: write  # seen_articles.json 커밋을 위해 필요
+
 jobs:
   monitor:
     runs-on: ubuntu-latest
