@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # changedetection.io - 웹사이트 변경 감지
+  changedetection:
+    image: ghcr.io/dgtlmoon/changedetection.io:latest
+    container_name: tesla-changedetection
+    ports:
+      - "5000:5000"
+    volumes:
+      - changedetection-data:/datastore
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Seoul
+      - BASE_URL=http://localhost:5000
+      - PLAYWRIGHT_DRIVER_URL=ws://playwright-chrome:3000
+    restart: unless-stopped
+    networks:
+      - tesla-network
+
+  # Playwright Chrome (JavaScript 렌더링용)
+  playwright-chrome:
+    image: browserless/chrome:latest
+    container_name: tesla-playwright-chrome
+    ports:
+      - "3000:3000"
+    environment:
+      - SCREEN_WIDTH=1920
+      - SCREEN_HEIGHT=1080
+      - SCREEN_DEPTH=16
+      - ENABLE_DEBUGGER=false
+      - PREBOOT_CHROME=true
+      - CONNECTION_TIMEOUT=60000
+      - MAX_CONCURRENT_SESSIONS=10
+      - CHROME_REFRESH_TIME=3600000
+      - DEFAULT_BLOCK_ADS=true
+      - DEFAULT_STEALTH=true
+    restart: unless-stopped
+    networks:
+      - tesla-network
+
+  # FastAPI Webhook 서버
+  fastapi-webhook:
+    build:
+      context: ./fastapi-webhook
+      dockerfile: Dockerfile
+    container_name: tesla-fastapi-webhook
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - X_API_KEY=${X_API_KEY}
+      - X_API_SECRET=${X_API_SECRET}
+      - X_ACCESS_TOKEN=${X_ACCESS_TOKEN}
+      - X_ACCESS_SECRET=${X_ACCESS_SECRET}
+    restart: unless-stopped
+    networks:
+      - tesla-network
+    depends_on:
+      - changedetection
+
+networks:
+  tesla-network:
+    driver: bridge
+
+volumes:
+  changedetection-data:
+    driver: local

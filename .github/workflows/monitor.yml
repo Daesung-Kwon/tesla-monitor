@@ -1,0 +1,51 @@
+name: Tesla Monitor
+
+on:
+  schedule:
+    # 15분마다 실행 (GitHub Actions는 최소 5분 간격)
+    - cron: '*/15 * * * *'
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd python-monitor
+          pip install -r requirements.txt
+      
+      - name: Create data directory
+        run: mkdir -p python-monitor/data
+      
+      - name: Download previous data
+        uses: actions/download-artifact@v3
+        with:
+          name: monitor-data
+          path: python-monitor/data
+        continue-on-error: true
+      
+      - name: Run monitor
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DATA_DIR: ./data
+        run: |
+          cd python-monitor
+          python monitor.py
+      
+      - name: Upload data
+        uses: actions/upload-artifact@v3
+        with:
+          name: monitor-data
+          path: python-monitor/data
+          retention-days: 90
