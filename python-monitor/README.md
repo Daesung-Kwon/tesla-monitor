@@ -1,48 +1,40 @@
-# Tesla Monitor - Pure Python Version
+# Tesla Monitor - RSS Feed Version
 
-changedetection.io 없이 순수 Python으로 구현한 버전입니다.
-**Telegram Bot으로 알림 (완전 무료!)**
+Tesla 관련 RSS 피드를 모니터링하여 Telegram으로 알림을 보냅니다.
+**완전 무료 & 차단 없음!**
+
+## 🎯 모니터링 대상
+
+### RSS 피드 목록
+- **Tesla 공식 블로그**: https://www.tesla.com/blog/rss
+- **Electrek**: Tesla 전문 뉴스 사이트
+- **Teslarati**: Tesla 뉴스 & 업데이트
+- **InsideEVs**: 전기차 뉴스
+- **Tesla North**: Tesla 캐나다 뉴스
+
+### 자동 필터링
+- ✅ Tesla 관련 기사만 선별
+- ✅ 중복 제거 (이미 본 기사는 스킵)
+- ✅ 최신 뉴스 우선
 
 ## 🚀 빠른 시작
 
-### 1. Telegram Bot 설정
+### 1. 로컬 실행
 
 ```bash
-# 1. @BotFather에게 /newbot
-# 2. Token 받기
-# 3. @userinfobot에게 /start
-# 4. Chat ID 받기
-```
-
-### 2. 환경 변수 설정
-
-```bash
-# .env 파일 생성
+# 환경 변수 설정
 cp env.example .env
+nano .env  # Telegram Bot Token & Chat ID 입력
 
-# 편집
-nano .env
-```
-
-`.env` 내용:
-```bash
-TELEGRAM_BOT_TOKEN=123456789:ABCdef...
-TELEGRAM_CHAT_ID=987654321
-DATA_DIR=./data
-```
-
-### 3. 로컬 실행
-
-```bash
-# 방법 1: 자동 스크립트
+# 테스트 실행
 ./test_local.sh
 
-# 방법 2: 수동 실행
+# 또는 수동:
 pip install -r requirements.txt
-python monitor.py
+python monitor_rss.py
 ```
 
-### 4. GitHub Actions 배포
+### 2. GitHub Actions 배포
 
 ```bash
 # 1. GitHub에 푸시
@@ -61,105 +53,146 @@ git push
 ## 📊 작동 방식
 
 ```
-[Tesla.com] ← requests로 HTML 다운로드
+[RSS 피드들] ← feedparser로 파싱
      ↓
-[해시 계산] ← SHA256
+[새 기사 감지] ← 이전 기사와 비교
      ↓
-[이전과 비교] ← 변경 감지
+[Tesla 관련 필터링] ← 키워드 체크
      ↓
-[Diff 계산] ← difflib
+[Telegram 전송] ← 최대 5개까지
      ↓
-[키워드 필터링] ← 중요 변경만
-     ↓
-[Telegram 전송] ← 무료 알림!
+[기사 ID 저장] ← 중복 방지
 ```
 
-## 🎯 모니터링 대상
+## 🎯 주요 기능
 
-- https://www.tesla.com/
-- https://www.tesla.com/cybertruck
-- https://www.tesla.com/model3
-- https://www.tesla.com/modely
-- https://www.tesla.com/modelx
-- https://www.tesla.com/models
-- https://www.tesla.com/energy
-- https://www.tesla.com/ko_kr
-- https://www.tesla.com/support/software-updates
-
-`monitor.py`에서 추가/삭제 가능
+- ✅ **RSS 피드 모니터링**: 5개 주요 뉴스 소스
+- ✅ **자동 필터링**: Tesla 관련 기사만
+- ✅ **중복 제거**: 같은 기사는 한 번만
+- ✅ **스팸 방지**: 한 번에 최대 5개 알림
+- ✅ **차단 없음**: RSS는 공개 API
+- ✅ **완전 무료**: $0/월
 
 ## 💰 비용
 
-**완전 무료!**
-
-- Telegram Bot API: $0
-- GitHub Actions: $0 (2,000분/월 무료)
+```
+RSS 피드:         무료 ✅
+Telegram Bot:     무료 ✅
+GitHub Actions:   무료 ✅
+──────────────────────
+총 비용: $0/월 🎉
+```
 
 ## 🔧 커스터마이징
 
+### RSS 피드 추가/제거
+
+`monitor_rss.py`:
+```python
+RSS_FEEDS = {
+    "Tesla Blog": "https://www.tesla.com/blog/rss",
+    "Electrek": "https://electrek.co/guides/tesla/feed/",
+    # 여기에 추가
+    "Your Feed": "https://example.com/feed/",
+}
+```
+
 ### 키워드 변경
 
-`monitor.py`:
 ```python
-IMPORTANT_KEYWORDS = [
-    'price', 'pricing', '원',
-    'new', 'launch', 'delivery',
-    # 여기에 추가
+tesla_keywords = [
+    'tesla', 'model 3', 'cybertruck',
+    # 원하는 키워드 추가
+    '한국', 'korea', '출시',
 ]
 ```
 
-### 메시지 포맷
+### 알림 개수 조정
 
 ```python
-def format_message(url: str, diff_snippet: str) -> str:
-    # 원하는 형태로 변경
-    message = f"🚗⚡ 업데이트!\n\n{summary}\n\n{url}"
-    return message
-```
-
-### 체크 주기
-
-`.github/workflows/monitor.yml`:
-```yaml
-schedule:
-  - cron: '*/30 * * * *'  # 30분마다
+for article in all_new_articles[:5]:  # 5 → 원하는 숫자
 ```
 
 ## 📝 파일 구조
 
 ```
 python-monitor/
-├── monitor.py           # 메인 스크립트
+├── monitor_rss.py       # RSS 피드 모니터링 (메인)
+├── monitor.py           # 웹사이트 직접 모니터링 (사용 안함)
 ├── requirements.txt     # Python 의존성
-├── railway.json         # Railway Cron 설정
-├── env.example          # 환경 변수 예시
 ├── test_local.sh        # 로컬 테스트 스크립트
-└── data/                # 데이터 저장 (자동 생성)
-    ├── xxxxx.html       # 이전 HTML
-    └── xxxxx.hash       # 이전 해시
+└── data/
+    └── seen_articles.json  # 본 기사 ID 저장
+```
+
+## 📊 예상 동작
+
+### 첫 실행
+```
+Tesla RSS Monitor 시작
+피드 체크: Tesla Blog
+피드 체크: Electrek
+...
+새 기사 총 15개 발견
+포스팅: 5개 (스팸 방지)
+```
+
+### 다음 실행 (15분 후)
+```
+이미 본 기사: 15개
+새 기사 총 2개 발견
+포스팅: 2개
+```
+
+### Telegram 메시지
+```
+🚗⚡ Tesla 뉴스 업데이트!
+
+Tesla Announces New Model 3 Update
+
+📰 출처: Electrek
+📅 2026-01-18 15:30
+
+Tesla has announced a major update...
+
+🔗 자세히 보기
+
+#Tesla #테슬라 #TeslaNews
 ```
 
 ## 🐛 문제 해결
 
-### Telegram 메시지가 안 옴
+### "이미 본 기사"만 나옴
+정상입니다! 첫 실행은 기존 기사를 모두 "본 것"으로 표시합니다.
+다음 실행부터 새 기사만 알림을 보냅니다.
 
-1. Token/Chat ID 확인
-2. Bot과 대화 시작 (`/start`)
-3. 로그 확인: `python monitor.py`
+### RSS 피드 파싱 실패
+일부 피드가 일시적으로 접근 불가할 수 있습니다.
+다음 실행에서 자동으로 재시도됩니다.
 
-### "첫 실행"만 나옴
+### Telegram 전송 실패
+- Bot Token / Chat ID 확인
+- Bot과 대화 시작 (`/start`)
 
-정상입니다! 첫 실행은 초기 데이터만 저장합니다.
-다시 실행하면 변경 감지를 시작합니다.
+## 🎓 RSS vs 웹사이트 직접 모니터링
+
+| 항목 | RSS 피드 | 웹사이트 직접 |
+|------|----------|--------------|
+| 차단 위험 | ❌ 없음 | ✅ 높음 (403) |
+| 안정성 | ✅ 높음 | ❌ 낮음 |
+| 속도 | ✅ 빠름 | ❌ 느림 |
+| 비용 | ✅ 무료 | ✅ 무료 |
+| 정보 품질 | ✅ 공식 뉴스 | ⚠️ HTML 파싱 |
+
+**결론**: RSS 피드가 훨씬 좋습니다! 🎉
 
 ## 📚 추가 문서
 
 - [Telegram 설정 가이드](../TELEGRAM_SETUP_GUIDE.md)
 - [프로젝트 전체 요약](../PROJECT_SUMMARY.md)
-- [비용 분석](../docs/QUICKSTART.md)
 
 ---
 
-**Made with ❤️ by Tesla Enthusiasts**
+**Made with ❤️ for Tesla Fans**
 
 🚗⚡ Happy Monitoring! 🚗⚡

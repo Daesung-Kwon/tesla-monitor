@@ -41,7 +41,7 @@ jobs:
           DATA_DIR: ./data
         run: |
           cd python-monitor
-          python monitor.py
+          python monitor_rss.py
       
       - name: Upload data
         uses: actions/upload-artifact@v4
