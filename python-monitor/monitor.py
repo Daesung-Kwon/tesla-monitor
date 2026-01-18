@@ -2,9 +2,11 @@
 Tesla Website Monitor - Pure Python Implementation
 changedetection.io 없이 순수 Python으로 구현
 Telegram Bot으로 알림 전송 (완전 무료!)
+CloudFlare 우회 기능 포함
 """
 
 import requests
+import cloudscraper
 import hashlib
 import os
 import time
@@ -13,6 +15,7 @@ from datetime import datetime
 from typing import Optional, Dict, List
 import json
 import logging
+import random
 
 # 로깅 설정
 logging.basicConfig(
@@ -53,17 +56,50 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 
 def get_page_content(url: str) -> Optional[str]:
-    """웹페이지 내용 가져오기"""
+    """웹페이지 내용 가져오기 (CloudFlare 우회)"""
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=30)
+        # CloudFlare 우회를 위한 cloudscraper 사용
+        scraper = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'darwin',
+                'desktop': True
+            }
+        )
+        
+        # 추가 헤더
+        scraper.headers.update({
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,ko;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0',
+            'Referer': 'https://www.google.com/'
+        })
+        
+        logger.info(f"접속 시도: {url}")
+        response = scraper.get(url, timeout=30, allow_redirects=True)
         response.raise_for_status()
+        
+        logger.info(f"접속 성공: {url} (크기: {len(response.text)} bytes)")
         return response.text
+        
     except Exception as e:
         logger.error(f"페이지 가져오기 실패 {url}: {e}")
-        return None
+        
+        # 백업: 일반 requests로 재시도
+        try:
+            logger.info(f"일반 requests로 재시도: {url}")
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            }
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return response.text
+        except Exception as e2:
+            logger.error(f"재시도도 실패: {e2}")
+            return None
 
 
 def get_content_hash(content: str) -> str:
@@ -290,11 +326,18 @@ def monitor_all():
     logger.info("=" * 60)
     
     results = []
-    for url in TESLA_URLS:
+    for idx, url in enumerate(TESLA_URLS):
         try:
+            logger.info(f"[{idx+1}/{len(TESLA_URLS)}] {url}")
             result = monitor_url(url)
             results.append((url, result))
-            time.sleep(2)  # Rate limiting
+            
+            # Rate limiting: 각 요청 사이 3-5초 대기 (자연스럽게)
+            if idx < len(TESLA_URLS) - 1:
+                import random
+                wait_time = random.uniform(3, 5)
+                logger.info(f"대기 중... {wait_time:.1f}초")
+                time.sleep(wait_time)
         except Exception as e:
             logger.error(f"오류 발생 {url}: {e}")
             results.append((url, False))
