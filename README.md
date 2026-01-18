@@ -22,7 +22,9 @@ Tesla 관련 뉴스를 RSS 피드로 모니터링하여 Telegram으로 실시간
 
 - ✅ **RSS 피드 모니터링** - 5개 주요 Tesla 뉴스 소스
 - ✅ **자동 필터링** - Tesla 관련 기사만 선별
+- ✅ **🎯 키워드 필터링** - 특정 키워드만 알림 (NEW!)
 - ✅ **중복 제거** - 같은 기사는 한 번만 알림
+- ✅ **🇰🇷 한글 번역** - 제목/요약 자동 번역
 - ✅ **Telegram 알림** - 실시간 푸시 알림
 - ✅ **GitHub Actions** - 15분마다 자동 실행
 - ✅ **완전 무료** - $0/월, 제약 없음
@@ -76,7 +78,34 @@ Tesla 관련 뉴스를 RSS 피드로 모니터링하여 Telegram으로 실시간
 #    Actions → Enable workflows → Run workflow
 ```
 
-### ⭐ Step 3: 완료! (2분)
+### ⭐ Step 3: (선택) 키워드 필터 설정 (1분)
+
+**특정 키워드만 알림 받고 싶다면?**
+
+```bash
+# GitHub Settings → Secrets → Actions
+
+# 1. 필터 활성화
+Name: KEYWORD_FILTER_ENABLED
+Value: true
+
+# 2. 키워드 입력 (쉼표로 구분)
+Name: FILTER_KEYWORDS
+Value: cybertruck,fsd,korea,가격
+
+# 예시:
+# - Cybertruck만: cybertruck,사이버트럭
+# - FSD만: fsd,autopilot,자율주행
+# - 한국 뉴스: korea,한국,서울
+# - 가격 정보: price,가격,discount
+# - 종합: cybertruck,fsd,price,korea
+```
+
+**→ [QUICK_KEYWORD_SETUP.md](QUICK_KEYWORD_SETUP.md) ← 1분 설정 가이드**
+
+**→ [KEYWORD_FILTER_GUIDE.md](KEYWORD_FILTER_GUIDE.md) ← 상세 가이드**
+
+### ⭐ Step 4: 완료! (2분)
 
 ```
 ✅ 첫 실행: 기존 기사 저장 (알림 없음)
