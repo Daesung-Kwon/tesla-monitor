@@ -26,6 +26,20 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
+# 키워드 필터링 설정
+KEYWORD_FILTER_ENABLED = os.getenv("KEYWORD_FILTER_ENABLED", "false").lower() == "true"
+FILTER_KEYWORDS_STR = os.getenv("FILTER_KEYWORDS", "")
+
+# 키워드 필터 파싱 (쉼표로 구분)
+if FILTER_KEYWORDS_STR:
+    FILTER_KEYWORDS = [k.strip().lower() for k in FILTER_KEYWORDS_STR.split(",") if k.strip()]
+else:
+    FILTER_KEYWORDS = []
+
+logger.info(f"키워드 필터: {'활성화' if KEYWORD_FILTER_ENABLED else '비활성화'}")
+if KEYWORD_FILTER_ENABLED and FILTER_KEYWORDS:
+    logger.info(f"필터 키워드: {', '.join(FILTER_KEYWORDS)}")
+
 # Tesla 관련 RSS 피드 목록
 RSS_FEEDS = {
     "Tesla Blog": "https://www.tesla.com/blog/rss",
@@ -86,7 +100,7 @@ def is_tesla_related(entry: Dict) -> bool:
     title = entry.get('title', '').lower()
     summary = entry.get('summary', '').lower()
     
-    # Tesla 키워드
+    # Tesla 키워드 (기본)
     tesla_keywords = [
         'tesla', 'elon musk', 'model 3', 'model y', 'model s', 'model x',
         'cybertruck', 'roadster', 'semi', 'supercharger', 'autopilot',
@@ -94,7 +108,20 @@ def is_tesla_related(entry: Dict) -> bool:
     ]
     
     text = f"{title} {summary}"
-    return any(keyword in text for keyword in tesla_keywords)
+    
+    # Tesla 관련 기사가 아니면 바로 제외
+    if not any(keyword in text for keyword in tesla_keywords):
+        return False
+    
+    # 키워드 필터가 활성화되어 있으면 추가 필터링
+    if KEYWORD_FILTER_ENABLED and FILTER_KEYWORDS:
+        # 설정한 키워드가 하나라도 있어야 함
+        has_filter_keyword = any(keyword in text for keyword in FILTER_KEYWORDS)
+        if not has_filter_keyword:
+            logger.debug(f"   ⏭️  필터 키워드 없음: {entry.get('title', '')[:50]}")
+            return False
+    
+    return True
 
 
 def translate_to_korean(text: str) -> str:
