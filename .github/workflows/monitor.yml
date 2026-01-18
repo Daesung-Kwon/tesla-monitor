@@ -28,7 +28,7 @@ jobs:
         run: mkdir -p python-monitor/data
       
       - name: Download previous data
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: monitor-data
           path: python-monitor/data
@@ -44,7 +44,7 @@ jobs:
           python monitor.py
       
       - name: Upload data
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: monitor-data
           path: python-monitor/data
