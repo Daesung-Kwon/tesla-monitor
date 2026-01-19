@@ -65,6 +65,10 @@ DATA_DIR = os.getenv("DATA_DIR", "./data")
 os.makedirs(DATA_DIR, exist_ok=True)
 SEEN_FILE = os.path.join(DATA_DIR, "seen_articles.json")
 
+# 기사 최신성 필터 (최근 N일 이내 기사만 처리)
+MAX_ARTICLE_AGE_DAYS = int(os.getenv("MAX_ARTICLE_AGE_DAYS", "3"))  # 기본 3일
+logger.info(f"기사 최신성 필터: 최근 {MAX_ARTICLE_AGE_DAYS}일 이내만 처리")
+
 
 def load_seen_articles() -> set:
     """이미 본 기사 ID 로드"""
@@ -104,6 +108,43 @@ def get_article_id(entry: Dict) -> str:
     # link를 기준으로 해시 생성
     link = entry.get('link', '')
     return hashlib.md5(link.encode()).hexdigest()
+
+
+def is_article_recent(entry: Dict) -> bool:
+    """기사가 최근 N일 이내인지 확인"""
+    try:
+        # published 날짜 파싱
+        published = entry.get('published', '')
+        if not published:
+            # 날짜 정보 없으면 최신 기사로 간주 (보수적 접근)
+            return True
+        
+        # 날짜 파싱
+        pub_date = date_parser.parse(published)
+        
+        # 시간대 정보 없으면 UTC로 가정
+        if pub_date.tzinfo is None:
+            pub_date = pytz.utc.localize(pub_date)
+        
+        # 현재 시간 (UTC)
+        now = datetime.now(pytz.utc)
+        
+        # 기사 나이 계산
+        age = now - pub_date
+        age_days = age.days
+        
+        # 최근 N일 이내인지 확인
+        is_recent = age_days <= MAX_ARTICLE_AGE_DAYS
+        
+        if not is_recent:
+            logger.debug(f"   ⏰ 오래된 기사: {age_days}일 전 (제한: {MAX_ARTICLE_AGE_DAYS}일)")
+        
+        return is_recent
+        
+    except Exception as e:
+        # 날짜 파싱 실패하면 최신 기사로 간주
+        logger.debug(f"   ⚠️  날짜 파싱 실패: {e}, 최신 기사로 간주")
+        return True
 
 
 def is_tesla_related(entry: Dict) -> bool:
@@ -293,6 +334,7 @@ def check_feed(feed_name: str, feed_url: str, seen_articles: set) -> List[Dict]:
         new_articles = []
         skipped_seen = 0
         skipped_unrelated = 0
+        skipped_old = 0
         
         for entry in feed.entries[:10]:  # 최신 10개만 체크
             article_id = get_article_id(entry)
@@ -302,6 +344,12 @@ def check_feed(feed_name: str, feed_url: str, seen_articles: set) -> List[Dict]:
             if article_id in seen_articles:
                 logger.debug(f"   ⏭️  이미 본 기사: {title}")
                 skipped_seen += 1
+                continue
+            
+            # 오래된 기사는 스킵 (날짜 필터)
+            if not is_article_recent(entry):
+                logger.debug(f"   ⏭️  오래된 기사: {title}")
+                skipped_old += 1
                 continue
             
             # Tesla 관련 기사만
@@ -318,7 +366,7 @@ def check_feed(feed_name: str, feed_url: str, seen_articles: set) -> List[Dict]:
                 'id': article_id
             })
         
-        logger.info(f"   결과: 새 기사 {len(new_articles)}개 | 이미 본 것 {skipped_seen}개 | 무관 {skipped_unrelated}개")
+        logger.info(f"   결과: 새 기사 {len(new_articles)}개 | 이미 본 것 {skipped_seen}개 | 오래됨 {skipped_old}개 | 무관 {skipped_unrelated}개")
         return new_articles
         
     except Exception as e:

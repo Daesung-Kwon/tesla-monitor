@@ -37,6 +37,7 @@ jobs:
           DATA_DIR: ./data
           KEYWORD_FILTER_ENABLED: ${{ secrets.KEYWORD_FILTER_ENABLED }}
           FILTER_KEYWORDS: ${{ secrets.FILTER_KEYWORDS }}
+          MAX_ARTICLE_AGE_DAYS: ${{ secrets.MAX_ARTICLE_AGE_DAYS }}
         run: |
           cd python-monitor
           python monitor_rss.py
