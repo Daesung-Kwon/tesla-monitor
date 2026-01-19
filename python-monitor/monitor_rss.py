@@ -42,20 +42,23 @@ logger.info(f"키워드 필터: {'활성화' if KEYWORD_FILTER_ENABLED else '비
 if KEYWORD_FILTER_ENABLED and FILTER_KEYWORDS:
     logger.info(f"필터 키워드: {', '.join(FILTER_KEYWORDS)}")
 
-# Tesla 관련 RSS 피드 목록
+# Tesla 관련 RSS 피드 목록 (모두 검증됨)
 RSS_FEEDS = {
-    # 핵심 소스
-    "InsideEVs": "https://insideevs.com/rss/",  # ✅ 수정됨
+    # Tesla 전문 뉴스 (공식 발표 즉시 커버)
+    "Electrek": "https://electrek.co/guides/tesla/feed/",          # ⭐⭐⭐⭐⭐ 가장 빠름
+    "Teslarati": "https://www.teslarati.com/feed/",                # ⭐⭐⭐⭐⭐ 심층 분석
+    "Tesla North": "https://teslanorth.com/feed/",                 # ⭐⭐⭐⭐ 캐나다
     
-    # 안정적인 소스
-    "Electrek": "https://electrek.co/guides/tesla/feed/",
-    "Teslarati": "https://www.teslarati.com/feed/",
-    "Tesla North": "https://teslanorth.com/feed/",
-    "Tesla Oracle": "https://www.teslaoracle.com/feed/",
-    "CleanTechnica": "https://cleantechnica.com/tag/tesla/feed/",
+    # 전기차 전반 (Tesla 심층 커버)
+    "InsideEVs": "https://insideevs.com/rss/",                     # ⭐⭐⭐⭐⭐
     
-    # Tesla 공식 소식은 Electrek/Teslarati에서도 빠르게 다룸
-    # Tesla Blog는 봇 차단으로 직접 접근 불가 (403 Forbidden)
+    # 추가 Tesla 소스
+    "Tesla Oracle": "https://www.teslaoracle.com/feed/",           # ⭐⭐⭐⭐
+    "CleanTechnica": "https://cleantechnica.com/tag/tesla/feed/",  # ⭐⭐⭐⭐
+    "Tesmanian": "https://www.tesmanian.com/blogs/tesmanian-blog.atom",  # ⭐⭐⭐⭐
+    
+    # 참고: Tesla Blog (tesla.com/blog)는 봇 차단으로 접근 불가
+    # → Electrek/Teslarati가 Tesla 공식 발표를 몇 분 내로 커버
 }
 
 # 데이터 저장 경로
