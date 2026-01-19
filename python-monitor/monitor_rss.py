@@ -44,9 +44,8 @@ if KEYWORD_FILTER_ENABLED and FILTER_KEYWORDS:
 
 # Tesla 관련 RSS 피드 목록
 RSS_FEEDS = {
-    # 핵심 소스 (파싱 오류 있어도 시도)
-    "Tesla Blog": "https://www.tesla.com/blog/rss",
-    "InsideEVs": "https://insideevs.com/news/feed/",
+    # 핵심 소스
+    "InsideEVs": "https://insideevs.com/rss/",  # ✅ 수정됨
     
     # 안정적인 소스
     "Electrek": "https://electrek.co/guides/tesla/feed/",
@@ -54,6 +53,9 @@ RSS_FEEDS = {
     "Tesla North": "https://teslanorth.com/feed/",
     "Tesla Oracle": "https://www.teslaoracle.com/feed/",
     "CleanTechnica": "https://cleantechnica.com/tag/tesla/feed/",
+    
+    # Tesla 공식 소식은 Electrek/Teslarati에서도 빠르게 다룸
+    # Tesla Blog는 봇 차단으로 직접 접근 불가 (403 Forbidden)
 }
 
 # 데이터 저장 경로
