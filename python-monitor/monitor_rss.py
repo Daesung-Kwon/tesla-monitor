@@ -14,6 +14,8 @@ from typing import Optional, List, Dict
 import json
 import logging
 from deep_translator import GoogleTranslator
+import pytz
+from dateutil import parser as date_parser
 
 # 로깅 설정
 logging.basicConfig(
@@ -155,12 +157,23 @@ def format_telegram_message(entry: Dict, source: str) -> str:
     title_kr = translate_to_korean(title)
     summary_kr = translate_to_korean(summary)
     
-    # 날짜 포맷팅
+    # 날짜 포맷팅 (한국 시간으로 변환)
     try:
-        pub_date = datetime.strptime(published, '%a, %d %b %Y %H:%M:%S %z')
-        date_str = pub_date.strftime('%Y-%m-%d %H:%M')
-    except:
-        date_str = published[:16] if published else ''
+        # RSS 피드의 날짜를 파싱 (다양한 형식 지원)
+        pub_date = date_parser.parse(published)
+        
+        # 한국 시간대(KST)로 변환
+        kst = pytz.timezone('Asia/Seoul')
+        if pub_date.tzinfo is None:
+            # 시간대 정보가 없으면 UTC로 가정
+            pub_date = pytz.utc.localize(pub_date)
+        kst_time = pub_date.astimezone(kst)
+        
+        # 포맷팅: "2026-01-19 03:00 KST 🇰🇷"
+        date_str = kst_time.strftime('%Y-%m-%d %H:%M KST 🇰🇷')
+    except Exception as e:
+        logger.warning(f"날짜 파싱 실패: {e}")
+        date_str = f"{published[:16] if published else ''} (원본)"
     
     message = f"""🚗⚡ <b>테슬라 뉴스 업데이트!</b>
 
