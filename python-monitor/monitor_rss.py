@@ -43,13 +43,13 @@ if KEYWORD_FILTER_ENABLED and FILTER_KEYWORDS:
     logger.info(f"필터 키워드: {', '.join(FILTER_KEYWORDS)}")
 
 # Tesla 관련 RSS 피드 목록
-# 파싱 오류가 적은 안정적인 피드 선택
+# 파싱 오류가 적은 안정적인 피드만 선택
 RSS_FEEDS = {
     "Electrek": "https://electrek.co/guides/tesla/feed/",
     "Teslarati": "https://www.teslarati.com/feed/",
     "Tesla North": "https://teslanorth.com/feed/",
     "Tesla Oracle": "https://www.teslaoracle.com/feed/",
-    "Not a Tesla App": "https://www.notateslaapp.com/feed/",
+    "CleanTechnica": "https://cleantechnica.com/tag/tesla/feed/",
 }
 
 # 데이터 저장 경로
