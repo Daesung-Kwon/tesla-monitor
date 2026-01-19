@@ -43,12 +43,13 @@ if KEYWORD_FILTER_ENABLED and FILTER_KEYWORDS:
     logger.info(f"필터 키워드: {', '.join(FILTER_KEYWORDS)}")
 
 # Tesla 관련 RSS 피드 목록
+# 파싱 오류가 적은 안정적인 피드 선택
 RSS_FEEDS = {
-    "Tesla Blog": "https://www.tesla.com/blog/rss",
     "Electrek": "https://electrek.co/guides/tesla/feed/",
     "Teslarati": "https://www.teslarati.com/feed/",
-    "InsideEVs Tesla": "https://insideevs.com/news/feed/",
     "Tesla North": "https://teslanorth.com/feed/",
+    "Tesla Oracle": "https://www.teslaoracle.com/feed/",
+    "Not a Tesla App": "https://www.notateslaapp.com/feed/",
 }
 
 # 데이터 저장 경로
@@ -241,11 +242,27 @@ def check_feed(feed_name: str, feed_url: str, seen_articles: set) -> List[Dict]:
     try:
         logger.info(f"📰 피드 체크: {feed_name}")
         
-        # RSS 피드 파싱
-        feed = feedparser.parse(feed_url)
+        # User-Agent 헤더 추가 (봇 차단 방지)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        }
         
+        # requests로 먼저 가져오기
+        response = requests.get(feed_url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        # feedparser로 파싱
+        feed = feedparser.parse(response.content)
+        
+        # bozo 오류가 있어도 entries가 있으면 계속 진행
         if feed.bozo:
             logger.warning(f"⚠️  피드 파싱 경고: {feed_name} - {feed.bozo_exception}")
+            if not feed.entries:
+                logger.error(f"   ❌ 파싱 실패: 기사를 가져올 수 없습니다")
+                return []
+            else:
+                logger.info(f"   ⚡ 경고 무시하고 계속 진행 ({len(feed.entries)}개 기사 발견)")
         
         logger.info(f"   총 {len(feed.entries)}개 기사 발견")
         
