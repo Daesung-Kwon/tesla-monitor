@@ -43,8 +43,12 @@ if KEYWORD_FILTER_ENABLED and FILTER_KEYWORDS:
     logger.info(f"필터 키워드: {', '.join(FILTER_KEYWORDS)}")
 
 # Tesla 관련 RSS 피드 목록
-# 파싱 오류가 적은 안정적인 피드만 선택
 RSS_FEEDS = {
+    # 핵심 소스 (파싱 오류 있어도 시도)
+    "Tesla Blog": "https://www.tesla.com/blog/rss",
+    "InsideEVs": "https://insideevs.com/news/feed/",
+    
+    # 안정적인 소스
     "Electrek": "https://electrek.co/guides/tesla/feed/",
     "Teslarati": "https://www.teslarati.com/feed/",
     "Tesla North": "https://teslanorth.com/feed/",
@@ -238,28 +242,44 @@ def post_to_telegram(message: str) -> bool:
 
 
 def check_feed(feed_name: str, feed_url: str, seen_articles: set) -> List[Dict]:
-    """RSS 피드 체크하고 새 기사 반환"""
+    """RSS 피드 체크하고 새 기사 반환 (강화된 파싱)"""
     try:
         logger.info(f"📰 피드 체크: {feed_name}")
         
         # User-Agent 헤더 추가 (봇 차단 방지)
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'en-US,en;q=0.9',
         }
         
         # requests로 먼저 가져오기
-        response = requests.get(feed_url, headers=headers, timeout=15)
+        response = requests.get(feed_url, headers=headers, timeout=20, allow_redirects=True)
         response.raise_for_status()
         
-        # feedparser로 파싱
+        # 여러 방법으로 파싱 시도
+        feed = None
+        
+        # 방법 1: response.content로 파싱
         feed = feedparser.parse(response.content)
+        
+        # 방법 2: bozo 오류가 심각하면 response.text로 재시도
+        if feed.bozo and not feed.entries:
+            logger.info(f"   🔄 재시도 중 (다른 인코딩)...")
+            feed = feedparser.parse(response.text)
+        
+        # 방법 3: URL로 직접 파싱 시도
+        if feed.bozo and not feed.entries:
+            logger.info(f"   🔄 재시도 중 (직접 URL)...")
+            feed = feedparser.parse(feed_url)
         
         # bozo 오류가 있어도 entries가 있으면 계속 진행
         if feed.bozo:
-            logger.warning(f"⚠️  피드 파싱 경고: {feed_name} - {feed.bozo_exception}")
+            logger.warning(f"⚠️  피드 파싱 경고: {feed_name}")
+            logger.warning(f"   오류 내용: {feed.bozo_exception}")
             if not feed.entries:
-                logger.error(f"   ❌ 파싱 실패: 기사를 가져올 수 없습니다")
+                logger.error(f"   ❌ 파싱 실패: 기사를 가져올 수 없습니다 (여러 방법 시도했지만 실패)")
                 return []
             else:
                 logger.info(f"   ⚡ 경고 무시하고 계속 진행 ({len(feed.entries)}개 기사 발견)")
