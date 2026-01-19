@@ -55,7 +55,6 @@ RSS_FEEDS = {
     # 추가 Tesla 소스
     "Tesla Oracle": "https://www.teslaoracle.com/feed/",           # ⭐⭐⭐⭐
     "CleanTechnica": "https://cleantechnica.com/tag/tesla/feed/",  # ⭐⭐⭐⭐
-    "Tesmanian": "https://www.tesmanian.com/blogs/tesmanian-blog.atom",  # ⭐⭐⭐⭐
     
     # 참고: Tesla Blog (tesla.com/blog)는 봇 차단으로 접근 불가
     # → Electrek/Teslarati가 Tesla 공식 발표를 몇 분 내로 커버
